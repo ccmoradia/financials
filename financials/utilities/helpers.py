@@ -8,7 +8,7 @@ General helper functions
 """
 
 from pandas import *
-from numpy import array
+from numpy import array, zeros
 def stoploss(data,percentage,price_column,order_column,**kwargs):
     """
     Given order data and a percentage, create a stop loss order
@@ -73,21 +73,20 @@ def stoploss(data,percentage,price_column,order_column,**kwargs):
     df[order_column] = df[order_column].map(s)
     return df
     
-    
-def do_dataframe(data, rows = "L", cycle = False):
+def dict_to_dataframe(data, rows = "L", cycle = False):
     """
     Creates a data frame from a dictionary with different array lengths
-    
+        
     DataFrame is constructed in the following way
     
-    * Arguments are considered as columns
+    * Keys are considered as columns
     * Values are considered as rows. Values can be either scalars or lists/tuples
     * By default, list with the lowest length is considered the size of the
       array (i.e) number of rows and other lists are trimmed to fit in.
       See the rows option below to override this
-    * In case the value is scalar, the entire column is assigned the scalar
+    * In case the value is scalar, the entire column is assigned the scalar value
     
-     data - data dictionary
+     data - data dictionary with column names as key and rows as list or tuples     
      
      rows - string/integer, default "L" 
      
@@ -100,30 +99,45 @@ def do_dataframe(data, rows = "L", cycle = False):
             lengths are assigned NA
             
             integer - rows equal the number. If number > max(length of any list),
-            values are filled with NA. If number < min(length of any list), rows
-            are trimmed.   
+            rows are filled only to the maximum length of the list.
+            If number < min(length of any list), rows are trimmed.   
          
      cycle - boolean, default False 
              cycles values to fill in the rows instead of NA. Values are filled
-             by columns then by rows   
+             by columns. If the rows argument is set to L or less than the length
+             of any of the list values, then cycle has no effect.
              
-             
-    >>> from pandas import *
-    >>> from numpy import *
-    >>> dct = {'A':range(4), 'B':10, 'C':'Q', 'D': [10,20]}
-    >>> df = DataFrame(range(4), columns = ['A'])
-    >>> df['B'] = 10
-    >>> df['C'] = "Q"
-    >>> df['D'] = Series(dct)    
-    >>> 10
-    10
- 
+
     """
     keys = [k for (k,v) in data.items() if type(v) == list or type(v) == tuple]
     length = [len(v) for (k,v) in data.items() if k in keys]
-    max_length = max(length)
-    min_length = min(length)
-    pass
+    max_length, min_length = max(length), min(length)
+    rows = min(int(rows), max_length) if type(rows) == int else rows
+   
+    if rows == "L":
+        row_length = min_length
+    elif rows == "H":
+        row_length = max_length
+    else:
+        row_length = rows
+        
+    if row_length <= min_length:
+        cycle = False
+        
+   
+    df = DataFrame(zeros((row_length, len(data))), columns = data.keys())
+
+    for (k,v) in data.items():
+        if k in keys:
+            if cycle:
+                df[k] = Series((list(v) * int(row_length / len(v)) + list(v)[:row_length % len(v)]))
+            else:
+                df[k] = Series(v)
+        else:
+            df[k] = v  
+       
+    return df
+    
 
 def create_dataframe(data,columns):
     """
