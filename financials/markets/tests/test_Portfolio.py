@@ -1,4 +1,4 @@
-from Portfolio import Portfolio
+from financials.markets.Portfolio import Portfolio
 import unittest
 
 class TestPortfolio(unittest.TestCase):
