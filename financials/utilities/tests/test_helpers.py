@@ -1,7 +1,4 @@
-import sys
-sys.path.append('/home/ubermensch/financials/financials/utilities')
-
-from helpers import *  
+from financials.utilities.helpers import *  
 from pandas import DataFrame
 from numpy import *
 import unittest
