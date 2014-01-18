@@ -36,7 +36,6 @@ class TestTokenize(unittest.TestCase):
             self.assertEqual(self.t(k), v)
             
 class TestEvaluate(unittest.TestCase):
-    # Each solution corresponds to a sheet in the solutions.xls file
     expressions = {
                 "S1": 'first+third',
                 "S2": 'first+third*fourth',
