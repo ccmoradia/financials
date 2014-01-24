@@ -53,12 +53,12 @@ class TextConnection(object):
         if fnf == None:
             fnf = lambda x: True if '.csv' in x else False 
             
-        def read_file(file_to_read, **kwargs):
+        def read_file(file_to_read, symbol, **kwargs):
             # TO DO: Move this code outside this function
-            if fnf(fn):
+            if fnf(file_to_read):
                 d = read_csv(file_to_read, **kwargs)
                 if fns:
-                    d['SYMBOL'] = file_to_read[:-4]
+                    d['SYMBOL'] = symbol[:-4]
             return d        
                            
         
@@ -74,11 +74,14 @@ class TextConnection(object):
                             df = concat([df, read_file(fl, **kwargs)])
                     elif ext == '.gz':
                         kwargs['compression'] = '.gz'
-                        df = concat([df, read_file(fp, **kwargs)])                        
-                    elif ext == '.bz2'
-                        df = concat([df, read_file(fp, **kwargs)])
+                        df = concat([df, read_file(fp, f, **kwargs)])                        
+                    elif ext == '.bz2':
+                        df = concat([df, read_file(fp, f, **kwargs)])
                     else:
-                        pass
+                        df = concat([df, read_file(fp, f, **kwargs)])
+                else:
+                    df = concat([df, read_file(fp, f, **kwargs)])
+                       
         self._df  = df                
          
     def get_data(self, symbols, **kwargs):
