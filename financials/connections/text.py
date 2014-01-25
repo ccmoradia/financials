@@ -17,17 +17,18 @@ class TextConnection(object):
         """
         self._dir = directory
         
-    def decompress(self, archive_name):
+    def _decompress(self, archive_name):
         """
         Extract file from archive
-        
+        Return a 2-tuple containing the file name and the file object
+                
         archive_name: string
             path to the archive
         """
         import zipfile
-        archive = zipfile.Zipfile(archive_name)
-        for f in archive.namelist()[1:]:
-            yield (archive.open(f))       
+        archive = zipfile.ZipFile(archive_name)
+        for f in archive.infolist():
+            yield (f.filename, archive.open(f.filename))  
     
         
     def aggregate_data(self, fns = False, fnf = None, handle_compression = True, **kwargs):
@@ -40,10 +41,12 @@ class TextConnection(object):
         fnf (filename filter): Boolean function
             filter to be applied to a filename for further processing
             If filter is True, the file is processed else its not processed.
+            The function must result a Boolean value.
             The default filter is to process files that end with .csv extension.
             
         handle_compression: Boolean/ default True
             automatically extracts zip,gz,bz2 files
+            gz and bz2 files are assumed to contain csv files.
             In case of zip archive with multiple files, extracts all files
             with the csv extension
         
@@ -51,15 +54,17 @@ class TextConnection(object):
         """
         df = DataFrame()
         if fnf == None:
-            fnf = lambda x: True if '.csv' in x else False 
+            fnf = lambda x: True if ('.csv' in x) or ('.gz' in x) or ('bz2' in x) else False 
             
         def read_file(file_to_read, symbol, **kwargs):
             # TO DO: Move this code outside this function
-            if fnf(file_to_read):
+            d = DataFrame()
+            print file_to_read, symbol
+            if fnf(symbol):
                 d = read_csv(file_to_read, **kwargs)
                 if fns:
                     d['SYMBOL'] = symbol[:-4]
-            return d        
+            return d       
                            
         
         for root,dirs,files in os.walk(self._dir):
@@ -69,20 +74,25 @@ class TextConnection(object):
                 # TO DO: Move this code to the decompress function
                 if handle_compression:
                     if ext == '.zip':
-                        filelist = self.decompress(fp)
-                        for fl in  filelist:
-                            df = concat([df, read_file(fl, **kwargs)])
+                        filelist = self._decompress(fp)
+                        for (a,fl) in filelist:
+                            df = concat([df, read_file(fl, a, **kwargs)])  
                     elif ext == '.gz':
-                        kwargs['compression'] = '.gz'
-                        df = concat([df, read_file(fp, f, **kwargs)])                        
+                        options = kwargs.copy()
+                        options['compression'] = 'gzip'
+                        df = concat([df, read_file(fp, f, **options)])                        
                     elif ext == '.bz2':
+                        options = kwargs.copy()
+                        options['compression'] = 'bz2'
+                        df = concat([df, read_file(fp, f, **options)])
+                    elif ext == '.csv':
                         df = concat([df, read_file(fp, f, **kwargs)])
                     else:
-                        df = concat([df, read_file(fp, f, **kwargs)])
+                        pass
                 else:
                     df = concat([df, read_file(fp, f, **kwargs)])
                        
-        self._df  = df                
+        self._df  = df.reset_index(drop = True)               
          
     def get_data(self, symbols, **kwargs):
         """
