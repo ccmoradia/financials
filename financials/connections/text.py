@@ -31,7 +31,7 @@ class TextConnection(object):
             yield (f.filename, archive.open(f.filename))  
     
         
-    def aggregate_data(self, fns = False, fnf = None, handle_compression = True, **kwargs):
+    def aggregate_data(self, fns = False, fnf = None, after_read = None, handle_compression = True, **kwargs):
         """
         Given a directory path, aggregate data from csv files into a dataframe 
         
@@ -43,6 +43,9 @@ class TextConnection(object):
             If filter is True, the file is processed else its not processed.
             The function must result a Boolean value.
             The default filter is to process files that end with .csv extension.
+            
+        after_read: function/ default None
+            function to run after the file is read
             
         handle_compression: Boolean/ default True
             automatically extracts zip,gz,bz2 files
@@ -62,6 +65,10 @@ class TextConnection(object):
             print file_to_read, symbol
             if fnf(symbol):
                 d = read_csv(file_to_read, **kwargs)
+                if after_read is None:
+                    pass
+                else:
+                    d = after_read(d)
                 if fns:
                     d['SYMBOL'] = symbol[:-4]
             return d       

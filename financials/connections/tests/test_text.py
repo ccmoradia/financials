@@ -44,3 +44,16 @@ class TestTextConnection(unittest.TestCase):
         t.aggregate_data(fns = True, fnf = flt)
         df = read_csv(res)
         self.assertEqual(all(df.sort_index(axis = 1) == t._df.sort_index(axis = 1)), True) 
+        
+    def test_after_read(self):
+        pth = os.path.join(os.path.curdir, tp, 'data5')
+        res = os.path.join(os.path.curdir, rp, 'result_all.csv')
+        df = read_csv(res)
+        df['add_col'] = df['high'] + df['low']
+        def f(x):
+            x['add_col'] = x['high'] + x['low']
+            return x
+        t = TextConnection(pth)
+        t.aggregate_data(fns = True, after_read = f)
+        self.assertEqual(all(df.sort_index(axis = 1) == t._df.sort_index(axis = 1)), True)
+                
