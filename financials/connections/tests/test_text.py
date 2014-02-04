@@ -56,4 +56,9 @@ class TestTextConnection(unittest.TestCase):
         t = TextConnection(pth)
         t.aggregate_data(fns = True, after_read = f)
         self.assertEqual(all(df.sort_index(axis = 1) == t._df.sort_index(axis = 1)), True)
+        
+    def other_test(self):
+        # TO DO: test for no compression
+        # TO DO: test for reset_index
+        pass
                 

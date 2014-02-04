@@ -31,7 +31,7 @@ class TextConnection(object):
             yield (f.filename, archive.open(f.filename))  
     
         
-    def aggregate_data(self, fns = False, fnf = None, after_read = None, handle_compression = True, **kwargs):
+    def aggregate_data(self, fns = False, fnf = None, after_read = None, handle_compression = True, reset_index = True, **kwargs):
         """
         Given a directory path, aggregate data from csv files into a dataframe 
         
@@ -46,15 +46,22 @@ class TextConnection(object):
             
         after_read: function/ default None
             function to run after the file is read
+            Must return a dataframe
             
         handle_compression: Boolean/ default True
             automatically extracts zip,gz,bz2 files
             gz and bz2 files are assumed to contain csv files.
             In case of zip archive with multiple files, extracts all files
             with the csv extension
+            
+        reset_index: Boolean/ default True
+            Creates an integer index for the dataframe. 
+            If False, the original index is maintained
+     
         
         kwargs: Could pass all options to the pandas read_csv function
         """
+        from collections import Iterable
         df = DataFrame()
         if fnf == None:
             fnf = lambda x: True if ('.csv' in x) or ('.gz' in x) or ('bz2' in x) else False 
@@ -62,15 +69,12 @@ class TextConnection(object):
         def read_file(file_to_read, symbol, **kwargs):
             # TO DO: Move this code outside this function
             d = DataFrame()
-            print file_to_read, symbol
             if fnf(symbol):
                 d = read_csv(file_to_read, **kwargs)
-                if after_read is None:
-                    pass
-                else:
-                    d = after_read(d)
                 if fns:
                     d['SYMBOL'] = symbol[:-4]
+                if after_read is not None:
+                    d = after_read(d)
             return d       
                            
         
@@ -99,7 +103,7 @@ class TextConnection(object):
                 else:
                     df = concat([df, read_file(fp, f, **kwargs)])
                        
-        self._df  = df.reset_index(drop = True)               
+        self._df = df.reset_index(drop = True) if reset_index else df  
          
     def get_data(self, symbols, **kwargs):
         """
