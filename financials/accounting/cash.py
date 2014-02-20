@@ -1,4 +1,16 @@
 # A simple cash register
+"""
+TO DO
+
+ * Part realization and cancellation of funds
+ * Date specific filters
+ * Recurring inflows and outflows
+ * Split allocations
+ * Allow for reallocations
+ * Reconcile between cash and funds
+
+"""
+
 
 import numpy as np
 import datetime
@@ -16,7 +28,7 @@ class Cash(object):
         Initialize the cash register with an amount
         """
         self._cash = DataFrame(columns = ['A','TS','I'])
-        self._funds = DataFrame(columns = ['A', 'TS', 'I'])
+        self._funds = DataFrame(columns = ['A', 'TS', 'FD', 'I'])
         self._columns = ['A', 'TS', 'I']
         self._options = {}
         self._options['dtf'] = date_format
@@ -72,7 +84,7 @@ class Cash(object):
         Show the cash ledger
         """
         df = self._cash[self._columns]
-        df.set_index('TS')
+        df.set_index('TS', inplace = True)
         df.sort_index(inplace = True)
         df['balance'] = df['A'].cumsum()
         return df
@@ -83,9 +95,93 @@ class Cash(object):
         """
         self._cash = DataFrame(columns = ['A','TS','I'])
         
+    def add_funds(self, A, TS = None, FD = None, **kwargs):
+        """
+        Add funds realizable in the future to the register
+        
+        A: Amount
+        
+        TS: Timestamp
+        
+        FD: Future date
+        
+        Future date on which the inflow is expected or allocation is
+        to be met
+        
+        kwargs
+        ------
+        Any keyword arguments would be added as a separate column
+        """
+        D = {'A': abs(A), 'TS': d(TS,self._options['dtf']), 'FD': FD}
+        D.update(kwargs) 
+        df = DataFrame([D.values()], columns = D.keys())
+        self._funds = concat([self._funds, df], ignore_index = True)
+        return self._funds
+        
+    def cancel(self, ID):
+        """
+        Cancel an expected inflow or allocation
+        """
+        self._funds = self._funds.drop(ID)
+        return self._funds
+        
+        
+    def realize(self, ID):
+        """
+        Realize funds
+        
+        If funds are realized, move them from funds to cash.
+       
+        ID
+        ID of the entry to realize        
+        """
+        f = self._funds.loc[ID]
+        self.add(f['A'], f['FD'], I = f['I'])
+        self._funds = self.cancel(ID)
+        return self.balance()
+        
+    def allocate(self, A, TS = None, FD = None, **kwargs):
+        """
+        Allocate funds for the future
+        
+        A: Amount to allocate
+        TS: TimeStamp
+        FD: Future Date
+        """
+        D = {'A': -abs(A), 'TS': d(TS,self._options['dtf']), 'FD': FD}
+        D.update(kwargs) 
+        df = DataFrame([D.values()], columns = D.keys())
+        self._funds = concat([self._funds, df], ignore_index = True)
+        return self._funds
+        
+    def funds_position(self):
+        """
+        Get the funds position
+        """
+        return {
+                'inflows': sum(self._funds[self._funds['A'] >= 0]['A']),
+                'outflows': sum(self._funds[self._funds['A'] < 0]['A']),
+                'Net': sum(self._funds['A'])
+                }
+                
+    def reallocate(self):
+        """
+        Reallocate funds
+        """
+        pass
+        
+    def reconcile(self):
+        """
+        Reconcile cash and funds
+        """
+        pass
+        
+    def summary(self):
+        """
+        Summary snapshot
+        """
+        pass
         
 
         
-        
-
-        
+   
