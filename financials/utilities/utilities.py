@@ -45,21 +45,21 @@ def charges(basic = 1, *args, **kwargs):
     136.5
     """
     
-    p = 100.0
+    p = 0.01
     result = {}
     result['basic'] = basic    
     for (a,b,c) in args:
      
         if b == 'acc':
             if result.get(a.lower()):
-                result[a.lower()] = result[a.lower()] + sum(result.values()) * (float(c)/p)
+                result[a.lower()] = result[a.lower()] + sum(result.values()) * c * p
             else:
-                result[a.lower()] = sum(result.values()) * (float(c)/p)
+                result[a.lower()] = sum(result.values()) * c * p
         else:
             if result.get(a.lower()):
-                result[a.lower()] = result[a.lower()] + result[b.lower()] * (float(c)/p)
+                result[a.lower()] = result[a.lower()] + result[b.lower()] * c * p
             else:
-                result[a.lower()] = result[b.lower()] * (float(c)/p)
+                result[a.lower()] = result[b.lower()] * c * p
     return sum(result.values())
     
   
