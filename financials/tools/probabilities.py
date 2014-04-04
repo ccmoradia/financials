@@ -1,52 +1,42 @@
 import numpy as np
 from pandas import DataFrame
+from collections import Iterable
 
-class Probability(object):
+def frequency_table(dataframe, on, by, agg = 'size', stackby = None, fillNaN = True, fillvalue = 0, aggfunc = {}):
     """
-    A Probability class for dataframes
+    Calculate a frequency distribution table for a discrete distribution
+    
+    dataframe:
+        a pandas dataframe object
+    
+    on: column for which frequency distribution table is to be calculated
+    
+    by: columns by which the table is to be aggregated
+    
+    agg: {'size', 'sum'}
+        aggregation function to used
+        size: counts the number of occurences
+        sum: sums the number of occurences
+        
+    stackby:
+        colums by which the results are to be stacked
+        
+    fillNaN:
+        fill Nan values. Default True
+        
+    fillvalue:
+        value to fill for Nan values
+        
+    aggfunc:
+        list of function for each of the on variables    
     """
-    def __init__(self, dataframe):
-        """
-        Initialize the probability class with a dataframe
-        """
-        self._df = dataframe
-        self._options = {"func": np.size}
-        
-      
-    def get_frequencies(self, rows, columns, values, func = np.size):
-        """
-        Create a frequency table
-        
-        rows: row binding
-        
-        columns : column binding
-        
-        values: value columns
-     
-        """
-        c = crosstab(rows, columns, values = values, aggfunc = func)
-        return c.fillna(0, inplace = True)
-        
-    def get_probability_table(self, rows, columns, values, func = np.size):
-        """
-        Create a probability distribution table
-        """
-        c = get_frequencies(rows, columns, values = values, aggfunc = func)
-        return c.div(c.sum(axis = 1), axis = 0)
-        
-        
-    def get_p(self, on, **kwargs):
-        """
-        Get probability for a particular case
-        
-        on: column name
-        
-        kwargs: probability equivalents
-        """
-        df = self._df[self._df[kwargs.keys()[0]] == kwargs.values()[0]]
-        kwargs.popitem()
-        for k,v in kwargs.items():
-            df = df[df2[k] == v]
-        return len(df)/float(len(self._df))
+    grouped = dataframe.groupby(by, sort = False)
+    func_dict = {k: aggfunc[k] if aggfunc.get(k) is not None else agg for k in on}
+    grp = grouped.aggregate(func_dict)
+    
+    if stackby is not None:
+        grp = grp.unstack(stackby)
+        if fillNaN:
+            grp.fillna(fillvalue, inplace = True)
             
-
+    return grp
