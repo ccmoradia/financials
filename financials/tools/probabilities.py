@@ -40,3 +40,105 @@ def frequency_table(dataframe, on, by, agg = 'size', stackby = None, fillNaN = T
             grp.fillna(fillvalue, inplace = True)
             
     return grp
+    
+def normalize(s):
+    """
+    Normalize a series or dataframe such that the sum is one
+    Given a dataframe, columns are assumed to be independent events
+
+    s: pandas Series/DataFrame
+    """
+    S = sum(s.values.ravel()) + 0.0
+    return s/S
+    
+class Probability(object):
+    """
+    A Probability class for easy manipulation
+    """
+    def __init__(self, dataframe):
+        """
+        Initializes the object with the given dataframe
+        """
+        self._df = dataframe
+        self.tables = {}
+        
+    def __str___(self):
+        """
+        String representation
+        """
+        return "# of tables : " + str(len(self.tables))
+        
+    def add_table(self, on, by, name ="auto", **options):
+        """
+        Add a probability distribution table for faster lookups
+        """
+        if name == "auto":
+            name = "table" + str(len(self.tables))
+            
+        self.tables[name] = normalize(frequency_table(self._df, on ,by, **options))
+        
+    def remove_table(self, name):
+        """
+        Remove a table
+        """
+        del self.tables[name]
+        
+    def remove_all_tables(self):
+        """
+        Removes all the tables
+        """
+        self.tables = {}
+        
+    @property
+    def get_tables(self):
+        """
+        Returns the list of tables
+        """
+        return self.tables.keys()
+        
+    def lookup(self, table, key):
+        """
+        Lookup the probability value of the key in the given table
+        The probability of this key must exist in the table
+        otherwise nan is returned
+        
+        table:
+            table to look into
+            
+        key:
+            key to look up
+        """
+        try:
+            return self.tables[table].loc(key)
+        except KeyError:
+            return np.nan
+            
+    def lookup_var(self, table, var, on):
+        """
+        Lookup the probability of a variable
+        
+        table:
+            table to look into
+            
+        var:
+            variable to look for
+            
+        on:
+            column to look for                    
+        """
+        try:
+            return self.tables[table].xs(var, level = on)
+        except KeyError, AttributeError:
+            return np.nan
+            
+    def draw_pmf(self, table):
+        """
+        Plot the pmf for the table
+        """
+        self.tables[table].plot(kind = "bar")
+        
+    def draw_cdf(self, table):
+        """
+        Plot the CDF for the table
+        """
+        self.tables[table].cumsum().plot()
