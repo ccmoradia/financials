@@ -210,7 +210,7 @@ class AdvancedGroup(object):
         def agg_it(df):
             s = df.groupby(by)[col].agg(agg_func, **kwargs)
             df[name] = df[by].map(s)
-            return df            
+            return df.reset_index(drop = True)        
             
         if group is None:
             self._data = agg_it(self._data)
