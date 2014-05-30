@@ -109,6 +109,13 @@ class AdvancedGroup(object):
         """
         return self._groups.keys()
         
+    @property
+    def d(self):
+        """
+        return the entire data
+        """
+        return self._data
+        
     def get_group(self, name, isprint = True):
         """
         Print data for the group

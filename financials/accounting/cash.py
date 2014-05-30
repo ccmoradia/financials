@@ -23,9 +23,11 @@ class Cash(object):
     """
     A simple cash register
     """
-    def __init__(self, initial_amount = 0, date_format = '%Y-%m-%d'):
+    def __init__(self, initial_amount = 0, date_format = '%Y-%m-%d', addl_fields = None):
         """
         Initialize the cash register with an amount
+        
+        addl_fields: addl_fields as list
         """
         self._cash = DataFrame(columns = ['A','TS','I'])
         self._funds = DataFrame(columns = ['A', 'TS', 'FD', 'I'])
@@ -36,7 +38,7 @@ class Cash(object):
         self._cash = concat([self._cash, df])
         
     def __repr__(self):
-        return str(self._cash)
+        return str(self._cash[self._columns].set_index('TS'))
         
     def add(self, A, TS = None, **kwargs):
         """
@@ -57,7 +59,7 @@ class Cash(object):
         D.update(kwargs) 
         df = DataFrame([D.values()], columns = D.keys())
         self._cash = concat([self._cash, df], ignore_index = True)
-        return self._cash
+        return self._cash[self._columns].set_index("TS")
         
         
     def wd(self, A, TS = None, **kwargs):
@@ -71,8 +73,9 @@ class Cash(object):
         D.update(kwargs)
         df = DataFrame([D.values()], columns = D.keys())
         self._cash = concat([self._cash, df], ignore_index = True)
-        return self._cash
+        return self._cash[self._columns].set_index("TS")
         
+    @property
     def balance(self):
         """
         Balance in your cash register
@@ -83,11 +86,10 @@ class Cash(object):
         """
         Show the cash ledger
         """
-        df = self._cash[self._columns]
-        df.set_index('TS', inplace = True)
+        df = self._cash[self._columns].set_index('TS')
         df.sort_index(inplace = True)
         df['balance'] = df['A'].cumsum()
-        return df
+        return df[from_date:to_date]
         
     def clear(self):
         """
@@ -182,6 +184,17 @@ class Cash(object):
         """
         pass
         
+    def inflows(self, from_period = "2011", to_period = "2014"):
+        """
+        Cash inflows for the given period
+        """
+        return self._cash[self._cash.A > 0].set_index("TS")
+        
+    def outflows(self, from_period = "2011", to_period  = "2014"):
+        """
+        Cash outflows for the given period
+        """
+        return self._cash[self._cash.A < 0].set_index("TS")
 
         
    
