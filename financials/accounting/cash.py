@@ -11,7 +11,6 @@ TO DO
 
 """
 
-
 import numpy as np
 import datetime
 from pandas import DataFrame, concat
@@ -23,18 +22,20 @@ class Cash(object):
     """
     A simple cash register
     """
-    def __init__(self, initial_amount = 0, date_format = '%Y-%m-%d', addl_fields = None):
+    def __init__(self, initial_amount = 0,  date_format = '%Y-%m-%d', **kwargs):
         """
         Initialize the cash register with an amount
         
-        addl_fields: addl_fields as list
+        kwargs
+        =====
+        TS : TimeStamp for the data
         """
         self._cash = DataFrame(columns = ['A','TS','I'])
         self._funds = DataFrame(columns = ['A', 'TS', 'FD', 'I'])
         self._columns = ['A', 'TS', 'I']
         self._options = {}
         self._options['dtf'] = date_format
-        df = DataFrame([[initial_amount, datetime.datetime.now(), 'Opening Balance']], columns = self._columns)
+        df = DataFrame([[initial_amount, d(kwargs.get("TS")), 'Opening Balance']], columns = self._columns)
         self._cash = concat([self._cash, df])
         
     def __repr__(self):
@@ -97,104 +98,30 @@ class Cash(object):
         """
         self._cash = DataFrame(columns = ['A','TS','I'])
         
-    def add_funds(self, A, TS = None, FD = None, **kwargs):
-        """
-        Add funds realizable in the future to the register
-        
-        A: Amount
-        
-        TS: Timestamp
-        
-        FD: Future date
-        
-        Future date on which the inflow is expected or allocation is
-        to be met
-        
-        kwargs
-        ------
-        Any keyword arguments would be added as a separate column
-        """
-        D = {'A': abs(A), 'TS': d(TS,self._options['dtf']), 'FD': FD}
-        D.update(kwargs) 
-        df = DataFrame([D.values()], columns = D.keys())
-        self._funds = concat([self._funds, df], ignore_index = True)
-        return self._funds
-        
-    def cancel(self, ID):
-        """
-        Cancel an expected inflow or allocation
-        """
-        self._funds = self._funds.drop(ID)
-        return self._funds
-        
-        
-    def realize(self, ID):
-        """
-        Realize funds
-        
-        If funds are realized, move them from funds to cash.
-       
-        ID
-        ID of the entry to realize        
-        """
-        f = self._funds.loc[ID]
-        self.add(f['A'], f['FD'], I = f['I'])
-        self._funds = self.cancel(ID)
-        return self.balance()
-        
-    def allocate(self, A, TS = None, FD = None, **kwargs):
-        """
-        Allocate funds for the future
-        
-        A: Amount to allocate
-        TS: TimeStamp
-        FD: Future Date
-        """
-        D = {'A': -abs(A), 'TS': d(TS,self._options['dtf']), 'FD': FD}
-        D.update(kwargs) 
-        df = DataFrame([D.values()], columns = D.keys())
-        self._funds = concat([self._funds, df], ignore_index = True)
-        return self._funds
-        
-    def funds_position(self):
-        """
-        Get the funds position
-        """
-        return {
-                'inflows': sum(self._funds[self._funds['A'] >= 0]['A']),
-                'outflows': sum(self._funds[self._funds['A'] < 0]['A']),
-                'Net': sum(self._funds['A'])
-                }
-                
-    def reallocate(self):
-        """
-        Reallocate funds
-        """
-        pass
-        
-    def reconcile(self):
-        """
-        Reconcile cash and funds
-        """
-        pass
-        
     def summary(self):
         """
         Summary snapshot
         """
         pass
         
-    def inflows(self, from_period = "2011", to_period = "2014"):
+    def inflows(self, from_period = None, to_period = None):
         """
         Cash inflows for the given period
         """
-        return self._cash[self._cash.A > 0].set_index("TS")
+        df = self._cash[self._cash.A > 0].set_index("TS").sort_index()
+        return df.loc[from_period:to_period]
         
-    def outflows(self, from_period = "2011", to_period  = "2014"):
+    def outflows(self, from_period = None, to_period  = None):
         """
         Cash outflows for the given period
         """
-        return self._cash[self._cash.A < 0].set_index("TS")
-
+        df = self._cash[self._cash.A < 0].set_index("TS").sort_index()
+        return df.loc[from_period:to_period]
         
-   
+    def zeroflows(self, from_period = None, to_period = None):
+        """
+        Outflows equal to zero
+        This is for the theoretical
+        """
+        df = self._cash[self._cash == 0].set_index("TS").sort_index()
+        return df.loc[from_period:to_period]
