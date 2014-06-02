@@ -3,10 +3,9 @@ import numpy as np
 from pandas import DataFrame, concat
 from pandas.io.parsers import read_csv
 from pandas.tseries.offsets import DateOffset
-from financials.accounting import cash
+from financials.accounting.cash import Cash
 from functools import partial
 import datetime
-
 
 def _map_columns(column_index, mappings):
     """
@@ -33,27 +32,26 @@ d = lambda x=None,y='%Y-%m-%d' : datetime.datetime.now() if x is None else datet
 # Normalize values
 n = lambda x: x/sum(x)
 
+def _set_Q_V(df):
+    """
+    Sets the values for _Q and _V columns
+    """
+    d = {'BUY': 1, 'SELL': -1}
+    df['_Q'] = df['M'].map(d) * df['Q']
+    df['_V'] = df['P'] * df['_Q']
+    return df
+
 class Portfolio(object):
     """
     Portfolio class
     """
-
-    def __init__(self, date_format = '%Y-%m-%d'):
-        self._cash = DataFrame(columns = ['TS', 'A', 'I'])
+    def __init__(self, capital = 0, date_format = '%Y-%m-%d'):
+        self._cash = Cash(capital)
         self._trades = DataFrame(columns = ['TS', 'S', 'Q', 'P', 'M', '_Q', '_V'])  
         
     def __repr__(self):
         df = self._trades[['TS', 'S', 'Q', 'P', 'M', '_V']]
         return str(df.set_index('TS'))
-        
-    def _set_Q_V(self):
-        """
-        Sets the values for _Q and _P columns
-        """
-        d = {'BUY': 1, 'SELL': -1}
-        self._trades['_Q'] = self._trades.M.map(d) * self._trades.Q
-        self._trades['_V'] = self._trades.P * self._trades._Q
-            
    
     def add_funds(self, A, TS = None, **kwargs):
         """
@@ -64,13 +62,8 @@ class Portfolio(object):
         A : Amount of funds         
         TS: Date/time in specified format        
         """
-        D = {'A': abs(A), 'TS': d(TS)}
-        D.update(kwargs)
-        df = DataFrame([D.values()], columns = D.keys())
-        self._cash = concat([self._cash, df], ignore_index = True)
-        return self._cash
-
-                
+        return self._cash.add(A, TS, **kwargs)
+              
     def withdraw_funds(self, A , TS = None, **kwargs):
         """
         withdraw funds from this portfolio
@@ -80,37 +73,24 @@ class Portfolio(object):
         A: Amount of cash to be withdrawn
         TS: Date/time in specified format
         """
-        D = {'A': -abs(A), 'TS': d(TS)}
-        D.update(kwargs)
-        df = DataFrame([D.values()], columns = D.keys())
-        self._cash = concat([self._cash, df], ignore_index = True)
-        return self._cash        
+        return self._cash.wd(A, TS, **kwargs)
         
     expense = withdraw_funds # Helper function to add an expense
     
-    def cash_ledger(self, from_date = None, to_date = None):
+    def cash_ledger(self, from_period = None, to_period = None, freq = None):
         """
-        Display the cash ledger for the specified period
-        By default, ledger for the last 30 days are shown        
+        Display the cash ledger
         """
-        to_date = datetime.date.today() if to_date is None else to_date
-        from_date = to_date + DateOffset(days = -30) if from_date is None else from_date 
-        cash = self._cash[(self._cash.TS >= from_date) & (self._cash.TS <= to_date)]
-        trades = self._trades[(self._trades.TS >= from_date) & (self._trades.TS <= to_date)].groupby('TS')._V.sum()
-        trades = -trades
-        df = DataFrame(trades, columns = ["A"])
-        df['I'] = "Trades"
-        ledger = concat([df, cash.set_index('TS')])
-        return ledger.sort_index()      
-
+        return self._cash.ledger(from_period, to_period, freq)
+    
     @property
     def cash_balance(self):
         """
         Gets the current funds position
         """  
-        return self._cash.A.sum() - self._trades._V.sum()
+        return self._cash.balance
         
-    def add_trades(self,S,Q,P,M,TS='auto',**kwargs):
+    def add_trades(self,S,Q,P,M,TS=None,**kwargs):
         """
         Add trades to the existing portfolio
         
@@ -139,10 +119,14 @@ class Portfolio(object):
         """
         dct = kwargs.copy()
         dct.update([('S', S), ('Q', Q), ('P', P), ('M', M),
-                    ('TS', datetime.datetime.now() if TS == 'auto' else TS)])
+                    ('TS', d(TS))])
         df = DataFrame(np.array(dct.values()).reshape(1, len(dct)), columns = dct.keys())
+        df = _set_Q_V(df)
         self._trades = concat([self._trades, df])
-        self._set_Q_V()
+        if M == "BUY":
+            self.withdraw_funds(P * Q, I = "Trades", TS = TS)
+        else:
+            self.add_funds(P * Q, I = "Trades", TS = TS)        
         return self._trades
         
         
