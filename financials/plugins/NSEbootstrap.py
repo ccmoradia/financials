@@ -1,7 +1,9 @@
 import tables as table
 import numpy as np
-import os.path as path
+import os
 import requests
+import datetime
+from pandas import bdate_range
           
 data_type = np.dtype([
             ("SYMBOL", "S20"),
@@ -19,27 +21,58 @@ data_type = np.dtype([
             ("ISIN", "S20")
             ])
             
+patt = cm01APR2011bhav.csv.zip
+%d%b%Y
+     
 class BootStrapNSE(object):
     """
     Bootstrap for NSE
     """
-    def __init__(self, filename, url):
-        self.filename = filename
-        self.url = url
-        
-    def _isfileExists(self):
-        try:
-            with open(self.filename) as f:
-                pass
-            return True
-        except IOError:
-            return False
+    def __init__(self, filename, repository, schema = data_type, url = None):
+        self._filename = filename
+        self._repository = repository
+        self._schema = data_type
+        self._url = url
+        sel._log= []
          
     def _download(self, url):
-        pass
+        base_url = ""
+        url = base_url + url
+        try:
+            requests.get(url)
+            # save this file locally
+        except Exception as E:
+            self._log.append((url, E.message))
+            
+    def _update_database(self):
+        """
+        update the HDF5 database
+        """
+        if os.path.exists(self._filename):
+            dbase = tables.open_file(self._filename, "w")
+            table = dbase.root.RAW.bhavcopy
+            dbase.close()
+        else:
+            return "File not found"
         
     def bootstrap(self):
-        pass
+        if os.path.exists(self._filename):
+            pass
+        else:
+            dbase = tables.open_file(self._filename, "w")
+            root = dbase.root
+            group = dbase.create_group(root, "RAW")
+            table = dbase.create_table(group, "bhavcopy", self._schema, "NSE Daily Bhav copy of equities market")
+            dbase.close()            
         
-    def update(self):
-        pass
+    def update(self, from_date = "2011-01-01"):
+        if os.path.exists(self._filename):
+            dates = bdate_range(from_date, datetime.date.today())
+            for t in dates:
+                fn = os.path.join(self._repository, "cm" + t.strftime("%d%b%Y").upper() + "bhav.csv.zip")
+                if os.path.exists(fn):
+                    pass
+                else:
+                    self._download()               
+        else:
+            return "File not found"
