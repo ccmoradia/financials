@@ -20,8 +20,7 @@ data_type = np.dtype([
             ("TS", "S16"),
             ("TRADES", np.float64),
             ("ISIN", "S20")
-            ])
-            
+            ])            
    
 class BootStrapNSE(object):
     """
@@ -80,7 +79,7 @@ class BootStrapNSE(object):
             dbase = tables.open_file(self._filename, "a")
             table = dbase.root.RAW.bhavcopy # This is hardcoded
             try:
-                table.append(df.values.tolist()) 
+                table.append(df.values[:,:13].tolist()) 
                 table.flush()
                 dbase.close()
             except Exception as E:
@@ -134,4 +133,11 @@ class BootStrapNSE(object):
                         if status:
                             self._update_database(fn)        
         else:
-            return "File not found"
+            return "File not found"            
+            
+     @property
+     def get_log(self):
+        """
+        Get the error log
+        """
+        return self._log
