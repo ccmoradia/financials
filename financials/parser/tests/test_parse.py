@@ -7,7 +7,7 @@ Created on Fri Dec 27 19:18:16 2013
 
 from financials.parser.parse import SimpleParser, parse
 from pandas import DataFrame
-from pandas.io.parsers import read_csv, ExcelFile
+from pandas import read_csv, ExcelFile
 from numpy import array
 import unittest
 
@@ -30,11 +30,11 @@ class TestTokenize(unittest.TestCase):
                         "first>=second": ['first', '>=', 'second'],
                         "a*1.05+b*1e4": ['a', '*', '1.05', '+', 'b', '*', '1e4']
                         }
-    
+
     def test_tokenize(self):
         for k,v in self.expressions_dict.items():
             self.assertEqual(self.t(k), v)
-            
+
 class TestEvaluate(unittest.TestCase):
     expressions = {
                 "S1": 'first+third',
@@ -43,7 +43,7 @@ class TestEvaluate(unittest.TestCase):
                 "S4": 'third > 10 + first * fourth',
                 "S5": 'first >=3'
                 }
-                
+
     solutions = {
                 "S1": df['first'] + df['third'],
                 "S2": (df['first'] + df['third']) * df['fourth'],
@@ -51,7 +51,7 @@ class TestEvaluate(unittest.TestCase):
                 "S4": (df[df['third'] > 10]['third'] + df['first']) * df['fourth'],
                 "S5": df[df['first'] >= 3]['first']
                 }
-                
+
     def test_evaluate(self):
         for (k,v) in self.expressions.items():
             self.assertEqual(all(parse(df,v).dropna() == self.solutions[k].dropna()), True, k)
