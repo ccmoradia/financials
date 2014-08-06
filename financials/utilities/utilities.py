@@ -64,40 +64,54 @@ def charges(basic = 1, *args, **kwargs):
     return sum(result.values())
 
 
-def profit(O,H,L,C, BuyAt = 0., SellAt = 0., percent = None,
-           entry = None, OPEN = False, digits = 4):
+def profit(O,H,L,C, BuyAt = 0., SellAt = 0., percent = "infer",
+           entry = "infer", OPEN = False, digits = 4):
     """
-    Calculate the profit of a trade
-    Open
+    Calculate the profit of a trade based on OHLC Prices
+    O
         Open price of the stock
-    High
+    H
         High price of the stock
-    Low
+    L
         Low price of the stock
-    Close
+    C
         Close price of the stock
     BuyAt
-        Price to BuyAt as a percentage from Open Price
+        Price to BuyAt as a percentage from Open Price or the price
     SellAt
-        Price to SellAt as a percentage from Open Price
+        Price to SellAt as a percentage from Open Price or the price
+    percent
+        Whether to consider the BuyAt and SellAt as percentages
+        True to consider all values as strict percentages
+        False to consider all values as strict prices
+    entry
+        The entry position of the trade
+        Allowed values
+        "B" = Buy
+        "S" - Sell
+        "R" - A random buy or sell
+        a number between 0 and 1 - to select buy or sell probabilistically
+    OPEN
+        whether to include or discard trades when High or Low margins
+        equal the open price
+    digits
+        precision of the result in number of digits
     >>> profit(100, 103, 98, 102)
     0.02
     >>> profit(100, 103, 98, 102, BuyAt = 0.04)
-    -0.02
+    0.0
     >>> profit(100, 103, 98, 102, BuyAt = 0.01, SellAt = 0.03)
     0.0198
     >>> profit(100, 103, 98, 102, SellAt = 0.04)
-    0.02
+    0.0
     >>> profit(100, 103, 98, 102, BuyAt = 0.01, SellAt = 0.04)
     0.0099
     >>> profit(100, 103, 98, 102, BuyAt = -0.01)
-    0.01
-    >>> profit(100, 103, 98, 102, BuyAt = -0.01, SellAt = 0.02)
     0.0303
     """
     import random
     E = entry
-    if E is None:
+    if E == "infer":
         if BuyAt != 0:
             E = "B"
         elif SellAt != 0:
@@ -111,7 +125,8 @@ def profit(O,H,L,C, BuyAt = 0., SellAt = 0., percent = None,
     else:
         pass
 
-    inrange = lambda x: True if x <= H and x >=L else False
+    inrange = lambda x: True if x <= H and x >=L and not \
+    (True if (x == H or x == L) and OPEN else False) else False
 
     if E == "B":
         BUY = BuyAt if percent is False or BuyAt > 1 else O * (1 + BuyAt)
@@ -140,6 +155,9 @@ def profit(O,H,L,C, BuyAt = 0., SellAt = 0., percent = None,
         E = "S"
     else:
         P = 0.0
-
+    # print BUY,SELL,P,E
     return round(P/BUY, digits) if E == "B" else round(P/SELL, digits)
+
+profit(100, 108, 100, 105, BuyAt = 100, OPEN = True, entry = "S")
+
 

@@ -5,12 +5,18 @@ from financials.utilities.utilities import profit
 def test_profit():
     """
     The profit function calculates the percentage of profit on a trade given
-    OHLC and Buy and Sell triggers. The basic assumption is that once a trade
-    is entered into, the position is closed. All orders are considered as
-    LIMIT Orders. The first four arguments to the function are the
-    Open, High, Low and Close prices for the stock.
-    Percentage arguments must be relative to the Open Price.
-    Market and Limit order conditions
+    OHLC and Buy and Sell triggers. The first four arguments to the function
+    are the Open, High, Low and Close prices for the stock.
+    The function has the following assumptions
+        * The function works only where the profit of a trade could be
+    calculated based only on OHLC, buy and sell prices
+        * All trades are closed. Thus if a position is entered into, it would
+    be closed at the end of the period
+        * Only LIMIT orders are considered. (You could relax it to include
+    market orders)
+        * The function accepts percentage arguments for buy and sell price
+    They must be relative to the Open Price.
+
 
     A simple example
     Buy a stock and sell it at the end of the period
@@ -37,7 +43,7 @@ def test_profit():
     0.0099
 
     Since the period is closed, and a position is entered into the stock
-    is sold at current price
+    is sold at current price.
 
     Buy when stock increases by 5% and sell when it increases to 10%
     >>> profit(100, 104, 97, 102, BuyAt = 0.05, SellAt = 0.10)
@@ -76,20 +82,22 @@ def test_profit():
 
     Since both Buy and Sell are considered as percentages
     To distinguish between prices and percentages explicitly, use
-    **percent = True ** for using percentage and **percent = False** for prices.
+    **percent = True** for using percentage and **percent = False** for prices.
     Following the above example,
     >>> profit(0.1, 0.112, 0.085, 0.105, BuyAt = 0.08, SellAt = 0.15, percent = False)
     0.0
 
     Since no trade is possible within the given limits
 
+    Entry and Exit Positions
+    -------------------------
     The function determines entry, exit, buy and sell based on the following
     criteria
 
-    * If BuyAt and SellAt are both 0, then it is a market order for Buy and the
-    entry is the Open Price and exit is the close price
-    * If BuyAt is 0 and SellAt is some price, then it is a limit order for Sell
-    and the entry is the SellAt Price and exit is the Close Price
+    * If BuyAt and SellAt are both 0, then it is a Buy order and the entry is
+    the Open Price and exit is the close price
+    * If BuyAt is 0 and SellAt is some price, then it is a Sell order and the
+    entry is the SellAt Price and exit is the Close Price
     * If Sell At is 0 and BuyAt is some price, then it is a limit order for Buy
     and the entry is the BuyAt Price and the exit is the Close Price
     * If both BuyAt and SellAt has some price, then
@@ -185,40 +193,71 @@ def test_profit():
     0.05 #Highly unlikely the order gets executed
 
     >>> profit(100, 108, 100, 105, BuyAt = 100, OPEN = True)
-    0
+    0.0
 
     >>> profit(100, 108, 99, 105, BuyAt = 100, OPEN = True)
     0.05
 
-    >>> profit(100, 108, 100, 105, BuyAt = 100, OPEN = True, entry = "S")
-    -0.05
+    >>> profit(100, 108, 100, 105, BuyAt = 100, OPEN = False, entry = "S")
+    0.0
 
     In the second case, the order would get executed since the price has
     fallen and retraced back to 100
 
     >>> profit(100, 100, 95, 96, SellAt = 100, OPEN = True)
-    0
-
-    More examples for the above type
-
-    Quirky order
-    >>> profit(100, 104, 97, 102, BuyAt = 105, SellAt = 103) #doctest: +SKIP
-
-
+    0.0
 
     RoundOff
     --------
     By default the function rounds off to 4 decimal places. Use the **digits**
     argument to specify the number of digits in the output
+    >>> profit(60, 64, 58, 63, BuyAt = 62, SellAt = 63)
+    0.0161
+
+    >>> profit(60, 64, 58, 63, BuyAt = 62, SellAt = 63, digits = 2)
+    0.02
+
+    >>> profit(60, 64, 58, 63, BuyAt = 62, SellAt = 63, digits = 6)
+    0.016129
+
+    Every Other Order
+    -----------------
+    >>> profit(100, 104, 97, 102, BuyAt = 105, SellAt = 103) #doctest: +SKIP
+
+
+
 
     FAQ
     ---
     What if my position is open?
-    What if in case of trailing stop loss orders?
-    What if in case of Bracket Orders?
-    What if in case of Market Orders?
+        The profit on the trade would still be correct since the profit/loss
+        accrued at the end of the period is calculated using the close price
+        and the entry position. The only difference is trade is not closed and
+        thus the profit is not realised
 
-    Tick size
-    Corner case for BuyAt = 1
+    What if in case of Market Orders?
+        Since the price at which the trade is entered into cannot be ascertained
+        directly in a market order, profit cannot be calculated exactly. But
+        you could mark up the Buy and Sell prices and use the entry argument
+        to get a decent apporximation the profit. See the section simulating
+        market orders and close prices.
+
+    What if in case of Trailing Stop Loss orders?
+        TL;DR Profit cannot be calculated
+        The profit on a trailing stop loss cannot be ascertained from OHLC prices
+        alone. To illustrate let the OHLC be (100, 106, 97, 103) and the
+        Buy Price be 102 and Sell Price be 105 with trailing stop loss of 1%.
+        Your profit could be anywhere between -1 to 3.
+
+    What if in case of Bracket Orders?
+        See the FAQ for Trailing Stop Loss orders above
+
+    What if in case of multiple entry and exit points?
+        This is similar to a bracket order with multiple entry and exit points
+        See FAQ for Trailing Stop Loss orders
+
+    TO DO: Tick size
+    TO DO: Corner case for BuyAt = 1
+    TO DO: Checks to see OHLC is valid
     """
     pass
