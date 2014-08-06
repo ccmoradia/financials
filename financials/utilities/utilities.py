@@ -64,7 +64,8 @@ def charges(basic = 1, *args, **kwargs):
     return sum(result.values())
 
 
-def profit(O,H,L,C, BuyAt = 0., SellAt = 0., OrderType = "M"):
+def profit(O,H,L,C, BuyAt = 0., SellAt = 0., percent = None,
+           entry = None, OPEN = False, digits = 4):
     """
     Calculate the profit of a trade
     Open
@@ -79,8 +80,6 @@ def profit(O,H,L,C, BuyAt = 0., SellAt = 0., OrderType = "M"):
         Price to BuyAt as a percentage from Open Price
     SellAt
         Price to SellAt as a percentage from Open Price
-    OrderType
-        "M" for market and "L" for Limit
     >>> profit(100, 103, 98, 102)
     0.02
     >>> profit(100, 103, 98, 102, BuyAt = 0.04)
@@ -96,29 +95,51 @@ def profit(O,H,L,C, BuyAt = 0., SellAt = 0., OrderType = "M"):
     >>> profit(100, 103, 98, 102, BuyAt = -0.01, SellAt = 0.02)
     0.0303
     """
-    B = O * (1 + BuyAt)
-    S = O * (1 + SellAt)
-    R = lambda x,y = 4: round(x,y)
-    in_range = lambda x: True if x >=L and x<=H else False
-    if BuyAt == 0 and SellAt == 0:
-        return R((C - B)/B)
-    elif BuyAt == 0:
-        if in_range(S):
-            return R((S - B)/B)
+    import random
+    E = entry
+    if E is None:
+        if BuyAt != 0:
+            E = "B"
+        elif SellAt != 0:
+            E = "S"
         else:
-            return (R(C - B)/B)
-    elif SellAt == 0:
-        if in_range(B):
-            return R((S - B)/S)
-        else:
-            return R((S - C)/S)
+            E = "B"
+    if E == "R":
+        E = random.choice(("B", "S"))
+    elif isinstance(E, (int, float)):
+        E = "B" if random.random() > E else "S"
     else:
-        if in_range(B) and in_range(S):
-            return R((S - B)/B)
-        elif in_range(B):
-            return R((C - B)/B)
-        elif in_range(S):
-            return(R(S - C)/S)
+        pass
+
+    inrange = lambda x: True if x <= H and x >=L else False
+
+    if E == "B":
+        BUY = BuyAt if percent is False or BuyAt > 1 else O * (1 + BuyAt)
+    else:
+        if BuyAt == 0:
+            BUY = C
         else:
-            return 0
-profit(100, 103, 98, 102, BuyAt = -0.01)
+            BUY = BuyAt if percent is False or BuyAt > 1 else O * (1 + BuyAt)
+
+    if E == "S":
+        SELL = SellAt if percent is False or SellAt > 1 else O * (1 + SellAt)
+    else:
+        if SellAt == 0:
+            SELL = C
+        else:
+            SELL = SellAt if percent is False or SellAt > 1 else O * (1 + SellAt)
+
+
+    if inrange(BUY) and inrange(SELL):
+        P = SELL - BUY + 0.0
+    elif inrange(BUY) and not inrange(SELL):
+        P = C - BUY + 0.0
+        E = "B"
+    elif not inrange(BUY) and inrange(SELL):
+        P = SELL - C + 0.0
+        E = "S"
+    else:
+        P = 0.0
+
+    return round(P/BUY, digits) if E == "B" else round(P/SELL, digits)
+
