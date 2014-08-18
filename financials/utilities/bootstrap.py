@@ -172,9 +172,10 @@ class BootStrap(object):
         """
         if os.path.exists(self._DB):
             if force_overwrite:
-                h5file = open_file(self._DB, "w")
+                print "Hi"
             else:
                 return "File already exists"
+        h5file = open_file(self._DB, "r+")
         if create_tables:
             DATA = h5file.create_group("/", "_DATA")
             SYNC = h5file.create_group("/", "_SYNC")
@@ -273,7 +274,10 @@ class BootStrap(object):
             it = data_table.row
             for i in range(len(dataframe)):
                 for col in data_table.colnames:
-                    it[col] = dataframe.at[i,col]
+                    try:
+                        it[col] = dataframe.at[i,col]
+                    except KeyError:
+                        it[col] = 0
                 it.append()
             data_table.flush()
 

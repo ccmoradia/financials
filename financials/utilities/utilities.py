@@ -1,6 +1,5 @@
 # General utilities
 
-
 def charges(basic = 1, *args, **kwargs):
     """
     Calculate charges based on the given structure
@@ -158,6 +157,44 @@ def profit(O,H,L,C, BuyAt = 0., SellAt = 0., percent = "infer",
     # print BUY,SELL,P,E
     return round(P/BUY, digits) if E == "B" else round(P/SELL, digits)
 
-profit(100, 108, 100, 105, BuyAt = 100, OPEN = True, entry = "S")
+def build_index(from_date, to_date, constituents, include, exclude):
+    """
+    Build an index from the list of constituents
 
-
+    from_date
+        Start date of the index
+    to_date
+        End date of the index
+    constituents
+        Constituents of the index to begin with
+    include
+        constituents to be included as a dataframe with datetime index
+    exclude
+        constituents to be removed as a dataframe with datetime index
+    >>> from pandas import DataFrame, DatetimeIndex, Series
+    >>> from datetime import datetime
+    >>> BI = build_index("2014-01-01", "2014-01-03", ["A", "B"], \
+        include = DataFrame(["C"], index = DatetimeIndex(["2014-01-02"])),\
+        exclude = DataFrame(["A"], index = DatetimeIndex(["2014-01-02"])))
+    >>> all(BI == Series(data = ['A', 'B', 'C', 'B', 'C', 'B'], \
+        index = [datetime(2014,1,1), datetime(2014,1,1), datetime(2014,1,2), \
+        datetime(2014,1,2), datetime(2014,1,3), datetime(2014,1,3)]))
+    True
+    """
+    from itertools import repeat, chain
+    from numpy import array
+    from pandas import date_range, Series
+    index = {}
+    dates = date_range(from_date, to_date)
+    constituents = set(constituents)
+    for d in dates:
+        if d in include.index:
+            for i in include.ix[d].values.ravel():
+                constituents.add(i)
+        if d in exclude.index:
+            for i in exclude.ix[d].values.ravel():
+                constituents.remove(i)
+        index[d] = list(constituents)
+    a = [zip(repeat(k, len(v)), v) for k,v in index.iteritems()]
+    b = array(list(chain(*a)))
+    return Series(data = b[:,1], index = b[:, 0]).sort_index()
