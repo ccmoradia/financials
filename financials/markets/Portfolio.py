@@ -4,6 +4,7 @@ from pandas import DataFrame, concat
 from pandas.io.parsers import read_csv
 from pandas.tseries.offsets import DateOffset
 from financials.accounting.cash import Cash
+from financials.tools.AdvancedGroup import AdvancedGroup
 from functools import partial
 import datetime
 
@@ -45,14 +46,37 @@ class Portfolio(object):
     """
     Portfolio class
     """
-    def __init__(self, capital = 0, date_format = '%Y-%m-%d'):
+    def __init__(self, capital = 0, buy = "BUY", sell = "SELL"):
+        """
+        kwargs
+        ------
+        buy
+            buy code
+        sell
+            sell code
+        """
         self._cash = Cash(capital)
         self._trades = []
-        self._default_columns = ['TS', 'S', 'Q', 'P', 'M', '_V']
+        self._default_columns = ['TS', 'S', 'Q', 'P', 'M', 'V']
+        self._buy = buy
+        self._sell = sell
 
     def __repr__(self):
-        df = DataFrame(self._trades)
-        return str(df.set_index('TS'))
+        df = DataFrame(self._trades).set_index("TS")
+        return "Balance: {B}, Transactions: {T}".format \
+                (B = self.cash_balance, T = len(df))
+
+    def __add__(self, pf):
+        """
+        Adds two portfolios
+        """
+        return self.summary + pf.summary
+
+    def __sub__(self, pf):
+        """
+        Shows the difference between two portfolios
+        """
+        return self.summary - pf.summary
 
     def add_funds(self, A, TS = None, **kwargs):
         """
@@ -123,10 +147,10 @@ class Portfolio(object):
 
         """
         dct = kwargs.copy()
-        dct.update([('S', S), ('Q', Q), ('P', P), ('M', M), ('TS', TS),
-                    ('V', -P*Q if M == "BUY" else P*Q)])
+        dct.update([('S', S), ('Q', Q if M == self._buy else -Q), ('P', P),
+                    ('M', M), ('TS', TS)])
         self._trades.append(dct)
-        if M == "BUY":
+        if M == self._buy:
             self.withdraw_funds(P * Q, TS = TS, I = "Trade")
         else:
             self.add_funds(P * Q, TS = TS, I = "Trade")
@@ -154,73 +178,82 @@ class Portfolio(object):
         return self._trades['TS', 'S', 'Q', 'P', 'M']
 
 
-    def weights(self, S = None):
+    def weights(self, method = "transaction", S = None, **kwargs):
         """
         Get the current weights of the all the stocks in portfolio
         By default, weights for all the stocks are returned
         Use S to restrict the stocks
+        method
+            method to calculate weights
+            In case of valuation, a price dataframe to be given
+            'transaction' - based on BUY and SELL
+            'valuation' - based on present price
 
         S: Symbol. string or list.
             Symbol or list of symbols for which weight is required
 
         """
-        df = DataFrame(self._trades)
-        grp = df.groupby('S')
-        return n(grp.V.sum())
+        df = self.summary[self.summary.Q != 0]
+        return n(df.V)
 
-
-    def weight_history(self, S):
+    def weight_history(self, S, freq = "M"):
         """
         Get the weight history for a symbol
-        >>> 10+5
-        15
-        """
-
-    def ledger(self):
-        """
-        Gets the ledger info
+        S
+            Symbol
+        freq
+            frequency to calculate history
         """
         pass
 
+    @property
     def trades(self):
         """
         Gets the list of trades
         """
-        return self._trades
+        return DataFrame(self._trades).set_index("TS")
+
+    @property
+    def summary(self):
+        """
+        Provides a summary of the portfolio by symbols
+        """
+        df = DataFrame(self._trades)
+        df["V"] = df.P * df.Q
+        return df.groupby("S").agg({"Q": sum, "V": sum})
 
     def clear_trades(self):
         """
         Clear all trades
         """
-        cols = self._trades.columns
-        print cols
-        self._trades = DataFrame(columns = cols)
+        self._trades = []
 
+    @property
     def positions(self):
         """
         Gets the list of positions
         """
-        return self._trades.groupby(['S']).aggregate({'_Q': np.sum, '_V': np.sum})
+        return DataFrame(self._trades).groupby(['S']).agg({'Q': np.sum})
 
-    def valuation(self):
+    def valuation(self, price):
         """
         Get the current valuation
+        price
+            current price of the stocks as series
         """
-        pass
-
-    def shares(self):
-        """
-        Get the list of shares
-        """
-        t = self._trades
-        q = trades['Trade'].map(_d) * trades.Q
-
+        df = DataFrame(self._trades).groupby("S").agg({"Q": sum})
+        df["P"] = price.ix[df.index]
+        df["V"] = df.Q * df.P
+        return df
 
     def price(self, method = 'average'):
         """
         Average price of the shares
         """
-        pass
+        df = DataFrame(self._trades)
+        df["V"] = df.Q * df.P
+        df2 = df.groupby("S").agg({"Q": sum, "V": sum})
+        return df2.V/df2.Q
 
     def infer(self, what, FROM, relation, function):
         """
@@ -228,19 +261,11 @@ class Portfolio(object):
         """
         pass
 
-    def filter_trades(self, f = None, t = None, **kwargs):
+    def f(self, f):
         """
         Filter trades based on conditions
+        f
+            Any valid pandas dataframe query
         """
-        pass
-
-    def sort_on(self):
-        """
-        Toggles sorting and conversion of timestamp data
-
-        Timestamp conversion and sorting is done only when needed
-        This could take time in case of a large portfolio.
-        Toggling this option converts and sorts data at initialization
-        so that processing time could be a bit faster.
-        """
-        pass
+        df = DataFrame(self._trades)
+        return df.query(f)
