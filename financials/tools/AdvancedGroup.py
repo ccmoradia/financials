@@ -23,8 +23,10 @@ class AdvancedGroup(object):
         self._data = dataframe.copy()
         self._groups = {}
         self._batch = []
-        self._dispatch = {"ac": self.add_col, "aac": self.add_agg_col,
-                          "atc": self.add_transform_col}
+        self._dispatch = {"add_col": self.add_col,
+                          "add_agg_col": self.add_agg_col,
+                          "add_transform_col": self.add_transform_col,
+                          "add_feature": self.add_feature}
         options = {"TS": "TS", "S": "S"}
         options.update(kwargs)
         for k,v in options.iteritems():
@@ -199,9 +201,12 @@ class AdvancedGroup(object):
             else:
                 return lag_it(self._select(group))
 
-    def add_agg_col(self, by, col, agg_func, group = None, name = None, **kwargs):
+    @staticmethod
+    def add_agg_col(df, by, col, agg_func, group = None, name = None, **kwargs):
         """
         Adds an aggregated column to the dataframe based on some function
+
+        df: dataframe
 
         by: column by which aggregation is to be done
 
@@ -213,43 +218,38 @@ class AdvancedGroup(object):
         keyword arguments to the aggregate function
         """
         name = _autoname(name, agg_func.__name__, col)
+        s = df.groupby(by)[col].agg(agg_func, **kwargs)
+        df[name] = df[by].map(s)
+        return df.reset_index(drop = True)
 
-        def agg_it(df):
-            s = df.groupby(by)[col].agg(agg_func, **kwargs)
-            df[name] = df[by].map(s)
-            return df.reset_index(drop = True)
-
-        if group is None:
-            self._data = agg_it(self._data)
-            return self._data
-        else:
-            if isinstance(group, (list, tuple)):
-                return {g:agg_it(self._select(g)) for g in group}
-            else:
-                return agg_it(self._select(group))
-
-    def add_col(self, name, formula):
+    @staticmethod
+    def add_col(df, name, formula):
         """
         Add a column to the existing dataframe based on a formula
+        df: dataframe
         name: name of the column to add
         formula: a valid formula as string
             names in the formula must have columns in the dataframe
             only the operations +,-,*,/,** are supported
         """
-        df = self._data
         formula = name + "=" + formula
         return df.eval(formula)
 
-    def add_transform_col(self, by, cols, trans_func, group = None, name = None, **kwargs):
+    @staticmethod
+    def add_transform_col(df, by, cols, trans_func, group = None, name = None, **kwargs):
         """
         Add a transformed column to the dataframe
+        df: dataframe
         by: column to group by
         cols: columns for which transformation is to be applied
         trans_func: transformation function
         """
-        return self._data.groupby(by)[cols].transform(trans_func, **kwargs)
+        trans =  df.groupby(by)[cols].transform(trans_func, **kwargs)
+        return df.join(trans, lsuffix = "x_", rsuffix = "y_")
 
-    def add_feature(self, feature, *args, **kwargs):
+
+    @staticmethod
+    def add_feature(df, feature, *args, **kwargs):
         """
         Add a feature as a column to the dataframe
         Useful when creating a dataframe with a lot of properties
@@ -263,23 +263,36 @@ class AdvancedGroup(object):
         """
         import _features
         mapping = _features.__dict__
-        return mapping[feature](self._data, *args, **kwargs)
+        print feature
+        f = mapping[feature]
+        print f
+        return f(df, *args, **kwargs)
 
-
-    def add_to_batch(self, function, *args, **kwargs):
+    def add_to_batch(self, function, group = None, *args, **kwargs):
         """
         batch functionality for dataframe
         function
             abbr for the function
         """
-        self._batch.append((function, args, kwargs))
+        self._batch.append((function, group, args, kwargs))
 
     def do_batch(self):
         """
         Perform all operations in the batch
         """
-        for function, args, kwargs in self._batch:
-            func = self._dispatch[function]
-            func(*args, **kwargs)
+        result = {}
+        for function, group, args, kwargs in self._batch:
+            if group is None:
+                func = self._dispatch[function]
+                print func, func.__name__
+                func(self.d, *args, **kwargs)
+            else:
+                for g in group:
+                    if result.get(g) is None:
+                        result[g] = self._select(g)
+                    func = self._dispatch[function]
+                    func(result[g], *args, **kwargs)
         self._batch = []
-        return self.d
+        return result if len(result) > 0 else self.d
+
+
