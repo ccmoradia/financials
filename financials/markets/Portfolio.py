@@ -46,7 +46,8 @@ class Portfolio(object):
     """
     Portfolio class
     """
-    def __init__(self, capital = 0, buy = "BUY", sell = "SELL"):
+    def __init__(self, capital = 0, buy = "BUY", sell = "SELL",
+                 limit = 0, allow_short = True):
         """
         kwargs
         ------
@@ -54,12 +55,18 @@ class Portfolio(object):
             buy code
         sell
             sell code
+        limit
+            the amount beyond which cash shouldn't fall
+        allow_short
+            allow for short trades
+            If True, negative positions are included
         """
         self._cash = Cash(capital)
         self._trades = []
         self._default_columns = ['TS', 'S', 'Q', 'P', 'M', 'V']
         self._buy = buy
         self._sell = sell
+        self._limit = limit
 
     def __repr__(self):
         df = DataFrame(self._trades).set_index("TS")
@@ -77,6 +84,19 @@ class Portfolio(object):
         Shows the difference between two portfolios
         """
         return self.summary - pf.summary
+
+    def validate_limit(self):
+        """
+        Validates whether a transaction falls beyond cash limit
+        """
+        return self.cash_ledger()[self.cash_ledger().balance < self._limit]
+
+    def validate_positions(self):
+        """
+        Validates for positions
+        """
+        trades = self.trades.groupby("S")["Q"].cumsum()
+        return self.trades[trades < 0]   #TO DO: A better algorithm
 
     def add_funds(self, A, TS = None, **kwargs):
         """
