@@ -1,4 +1,4 @@
-from financials.markets.Portfolio import Portfolio
+from financials.markets.portfolio import Portfolio
 
 class BackTest(object):
     """
