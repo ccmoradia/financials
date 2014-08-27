@@ -239,7 +239,7 @@ class Portfolio(object):
         Provides a summary of the portfolio by symbols
         """
         df = DataFrame(self._trades)
-        df["V"] = df.P * df.Q
+        df["V"] = df.P * -df.Q
         return df.groupby("S").agg({"Q": sum, "V": sum})
 
     def clear_trades(self):

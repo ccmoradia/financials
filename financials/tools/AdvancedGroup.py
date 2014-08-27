@@ -263,9 +263,7 @@ class AdvancedGroup(object):
         """
         import _features
         mapping = _features.__dict__
-        print feature
         f = mapping[feature]
-        print f
         return f(df, *args, **kwargs)
 
     def add_to_batch(self, function, group = None, *args, **kwargs):
