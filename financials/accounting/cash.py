@@ -61,7 +61,7 @@ class Cash(object):
         self._columns = ['A', 'TS', 'I']
         self._options = {}
         self._options['dtf'] = date_format
-        df = DataFrame([[initial_amount, d(TS), 'Opening Balance']], columns = self._columns)
+        df = DataFrame([[initial_amount, d(TS), 'Capital']], columns = self._columns)
         self._cash = concat([self._cash, df])
 
     def __repr__(self):
@@ -175,4 +175,3 @@ class Cash(object):
             A valid pandas dataframe query
         """
         return self._cash.query(query)
-

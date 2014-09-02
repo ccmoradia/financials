@@ -47,7 +47,7 @@ class Portfolio(object):
     Portfolio class
     """
     def __init__(self, capital = 0, buy = "BUY", sell = "SELL",
-                 limit = 0, allow_short = True):
+                 limit = 0, allow_short = True, TS = datetime.datetime.now()):
         """
         kwargs
         ------
@@ -61,7 +61,7 @@ class Portfolio(object):
             allow for short trades
             If True, negative positions are included
         """
-        self._cash = Cash(capital)
+        self._cash = Cash(capital, TS = TS)
         self._trades = []
         self._default_columns = ['TS', 'S', 'Q', 'P', 'M', 'V']
         self._buy = buy
@@ -98,7 +98,7 @@ class Portfolio(object):
         trades = self.trades.groupby("S")["Q"].cumsum()
         return self.trades[trades < 0]   #TO DO: A better algorithm
 
-    def add_funds(self, A, TS = None, **kwargs):
+    def add_funds(self, A, TS = None, I = "Capital", **kwargs):
         """
         Add funds to this portfolio
 
@@ -107,9 +107,9 @@ class Portfolio(object):
         A : Amount of funds
         TS: Date/time in specified format
         """
-        return self._cash.add(A, TS, **kwargs)
+        return self._cash.add(A, TS, I = I, **kwargs)
 
-    def withdraw_funds(self, A , TS = None, **kwargs):
+    def withdraw_funds(self, A, TS = None, **kwargs):
         """
         withdraw funds from this portfolio
 
@@ -120,11 +120,11 @@ class Portfolio(object):
         """
         return self._cash.wd(A, TS, **kwargs)
 
-    def expense(self, A, TS = None, I = "expense", **kwargs):
+    def expense(self, A, TS = None, **kwargs):
         """
         Add an expense
         """
-        return self._cash.wd(A, TS, I, **kwargs)
+        return self._cash.wd(A, TS, I = "Expense", **kwargs)
 
     def cash_ledger(self, from_period = None, to_period = None, freq = None):
         """
@@ -139,7 +139,7 @@ class Portfolio(object):
         """
         return self._cash.balance
 
-    def add_trades(self,S,Q,P,M,TS=None,**kwargs):
+    def add_trades(self,S,Q,P,M, I = "Trade", TS=None,**kwargs):
         """
         Add trades to the existing portfolio
 
@@ -171,9 +171,9 @@ class Portfolio(object):
                     ('M', M), ('TS', TS)])
         self._trades.append(dct)
         if M == self._buy:
-            self.withdraw_funds(P * Q, TS = TS, I = "Trade")
+            self.withdraw_funds(P * Q, TS = TS, I = I)
         else:
-            self.add_funds(P * Q, TS = TS, I = "Trade")
+            self.add_funds(P * Q, TS = TS, I = I)
         return self._trades
 
 
