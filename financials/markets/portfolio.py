@@ -5,6 +5,7 @@ from pandas.io.parsers import read_csv
 from pandas.tseries.offsets import DateOffset
 from financials.accounting.cash import Cash
 from financials.tools.AdvancedGroup import AdvancedGroup
+from financials.markets.metrics import Metrics
 from functools import partial
 import datetime
 
@@ -67,6 +68,7 @@ class Portfolio(object):
         self._buy = buy
         self._sell = sell
         self._limit = limit
+        self.metrics = Metrics(self)
 
     def __repr__(self):
         df = DataFrame(self._trades).set_index("TS")
@@ -249,7 +251,7 @@ class Portfolio(object):
         self._trades = []
 
     @property
-    def positions(self):
+    def holdings(self):
         """
         Gets the list of positions
         """
@@ -271,8 +273,8 @@ class Portfolio(object):
         Average price of the shares
         """
         df = DataFrame(self._trades)
-        df["V"] = df.Q * df.P
-        df2 = df.groupby("S").agg({"Q": sum, "V": sum})
+        df["V"] = df.Q * df.P + 0.0
+        df2 = df.groupby(["S", "M"]).agg({"Q": sum, "V": sum}).unstack()
         return df2.V/df2.Q
 
     def infer(self, what, FROM, relation, function):
