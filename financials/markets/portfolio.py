@@ -43,12 +43,66 @@ def _set_Q_V(df):
     df['_V'] = df['P'] * df['_Q']
     return df
 
+
+def _validate_trades(trades, capital, mode_keys = ("B", "S"), limit = 0,
+                    allow_short = False, max_weight = 1.0):
+
+    """
+    Validate trades
+    trades
+        list containing trades in the prescribed format
+    mode_keys
+        a two tuple indicating the BUY and SELL keys
+    limit
+        limit below which capital shouldn't fall
+    allow_short
+        True to allow short sales
+    max_weight
+        maximum weight for a symbol
+
+    returns a dict with passed trades and failed trades
+
+    #TO DO: Error code for messages
+    """
+    from collections import Counter
+    initial_capital = capital + 0.0 #convert to float
+    B,S = mode_keys
+    passed = []
+    failed = []
+    q_counter = Counter()
+    v_counter = Counter()
+    for trade in trades:
+        V = trade["Q"] * trade["P"]
+        if trade["M"] == B:
+            if V < capital:
+                if (v_counter[trade["S"]] + V)/initial_capital < max_weight:
+                    q_counter[trade["S"]] = trade["Q"]
+                    v_counter[trade["S"]] = V
+                    capital -= V
+                    passed.append(trade)
+                else:
+                    failed.append((trade, "Max_weight exceeded"))
+            else:
+                failed.append((trade, "Lack of capital"))
+        elif trade["M"] == S:
+            if q_counter[trade["S"]] >= trade["Q"]:
+                q_counter[trade["S"]] = -trade["Q"]
+                v_counter[trade["S"]] = -V
+                capital += V
+            else:
+                failed.append((trade, "Stock not in holdings"))
+        else:
+            failed.append((trade, "Mode different"))
+    return {"passed": passed, "failed": failed}
+
+
 class Portfolio(object):
     """
     Portfolio class
     """
     def __init__(self, capital = 0, buy = "BUY", sell = "SELL",
-                 limit = 0, allow_short = True, TS = datetime.datetime.now()):
+                 limit = 0, allow_short = True, TS = datetime.datetime.now(),
+                 validate_mode = False):
         """
         kwargs
         ------
@@ -87,9 +141,13 @@ class Portfolio(object):
         """
         return self.summary - pf.summary
 
-    def validate_limit(self):
+    def validate_trades(self, replace = False):
         """
-        Validates whether a transaction falls beyond cash limit
+        Validates all the trades
+        replace
+            If True, replace the existing trades with validated trades
+            Use this option with caution since it reconstructs the entire
+            portfolio
         """
         return self.cash_ledger()[self.cash_ledger().balance < self._limit]
 
