@@ -1,99 +1,111 @@
 # Connect from and to HDF5 class
 
-import h5py
-from numpy import dtype
+from tables import open_file
 
 class HDF5Connection(object):
     """
-    Create a HDF5 connection object    
+    Create a HDF5 connection object
     """
     pass
-    
+
     def __init__(self, filename, **options):
         """
         Open a connection to the HDF5 file
         Create a file if it doesn't exit
-        
+
         filename: string
         **options
         any keyword arguments that could be passed to h5py.File object
         """
-        self._f = h5py.File(filename, **options)
-        
+        self._f = open_file(filename, **options)
+
     def __del__(self):
         # Close the HDF5 file
-        self._f.close()  
- 
-        
-    def add_data(self, data, path = 'DATA', dtypes = None, convert_object = True, **kwargs):
-        """
-        Add data to an existing HDF5 file. Create the file if it doesn't exist
-        Objects are converted into strings. Datasets created are limited to the
-        maximum shape of 1 billion rows in case of record arrays. Existing datasets
-        are assumed to be flexible so that new data can be added.
-                
-        data: numpy recarray        
-        
-        path: string/ default DATA
-            HDF5 path to write to
-            
-        dtypes: numpy dtype
-            converted to this dtypes when writing to HDF5 file
-            
-        convert_object: Boolean/ default True
-            convert object into strings of size 100. This overrides the dtype option for objects.
-            Pass False to preserve the dtypes
-            
-        kwargs
-        =======
-        List of arguments that could be passed to HDF5 file object
-        
-        maxshape: int/default 1000000000
-            maximum rows of the datasets     
-        
-        """
-        if kwargs.get('maxshape') is None:
-            maxshape = 1000000000
-        else:
-            maxshape = kwargs['maxshape']
-        
-        if convert_object:
-            dtypes = [(k, dtype('S100') if v == dtype('O') else v) for (k,(v,v1)) in data.dtype.fields.items()]
-        else:
-            pass            
-            
-        if dtypes is None:
-            pass
-        else:
-            data = data.astype(dtypes)
-        
-        f = self._f
-        if f.get(path):
-            dset = f[path]
-            l,_ = data.shape
-            d,_ = dset.shape
-            dset.resize((l+d,))
-            dset[d:] = data
-        else:
-            dset = f.create_dataset(path, data = data, maxshape = (maxshape,))
-        
-    def get_data(self, symbols, path = "DATA", **kwargs):
-        """
-        Get data from a HDF5 file
-        
-        symbols: list
-            symbols to get data
-            
-        path: string
-            HDF5 path to extract data
-            
-        kwargs
-        ======
-         
-            
-        """
-        f = self._f
-        dset = f[path]
-        return dset[dset['SYMBOL'] == symbols]
-        
+        self._f.close()
 
+    @property
+    def f(self):
+        """
+        Return the HDF5 file handle
+        """
+        return self._f
+
+    def _build_condition(self, condition, linker = "&"):
+        """
+        Given a dictionary, convert it to the pytables condition format
+        condition
+            a dictionary with keys as column names and values as 2 tuples
+            with the first element being the operator and the second element
+            being a list of values to be found in the column
+        linker
+            link expression that matches all the conditions. usually | or &
+            In case of different linkers for each functions, pass a list
+            of size that is 1 less than dict
+        """
+        expr = []
+        for k,v in condition.iteritems():
+            a,b = v
+            expr.append("(" + '|'.join(["(" + k + a + str(x) + ")" for x in b]) + ")")
+        builder = expr[0]
+        if len(linker) > 1:
+            if len(linker) != (len(condition) - 1):
+                raise ValueError("Length of linker must be 1 less than \
+length of condition")
+            else:
+                for string, link in zip(expr[1:], linker):
+                    builder = builder + link + string
+        else:
+            for string in expr[1:]:
+                builder = builder + linker + string
+        return builder
+
+
+    def search_cols(self, column, path = "/", find_all = False, \
+    case_insensitive = False):
+        """
+        Search a column among all datasets
+        column
+            column to search
+        path
+            path to search for
+        find_all
+            If True searches the whole object tree and returns all occurences
+            If False returns the first occurence
+        case_insensitive
+            If True, a case insensitive search is made
+        """
+        result = []
+        for node in self._f.walk_nodes(path):
+            try:
+                if case_insensitive:
+                    column = column.lower()
+                    column_names = [x.lower() for x in node.colnames]
+                else:
+                    column_names = node.colnames
+                if column in column_names:
+                    result.append(node._v_pathname)
+                    if find_all is not True:
+                        break
+            except:
+                pass
+        return result
+
+    def search_attrs(self, attr, path = "/", find_all = True, \
+    case_insensitive = False):
+        """
+        Search attributes for a name
+        returns a dict with path as keys and attribute names as values
+        """
+        result = {}
+        for node in self._f.walk_nodes(path):
+            for attrs in self._f.get_node(node)._v_attrs._f_list("all"):
+                if case_insensitive:
+                    attr = attr.lower()
+                    myattr = str(self._f.get_node_attr(node, attrs)).lower()
+                else:
+                    myattr = self._f.get_node_attr(node, attrs)
+                if attr == myattr:
+                    result[node._v_pathname] = attrs
+            if (find_all is not True) and len(result) > 0:
+                return result
+        return result
