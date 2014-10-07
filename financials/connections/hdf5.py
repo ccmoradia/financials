@@ -1,6 +1,9 @@
 # Connect from and to HDF5 class
 
+from collections import Iterable
 from tables import open_file
+from pandas import DataFrame
+from pandas.tslib import Timestamp
 
 class HDF5Connection(object):
     """
@@ -45,6 +48,9 @@ class HDF5Connection(object):
         expr = []
         for k,v in condition.iteritems():
             a,b = v
+            b = b if isinstance(b, Iterable) else [b]
+            b = ["'" + str(x) + "'" if not isinstance(x, (int, float))
+                 else x for x in b]
             expr.append("(" + '|'.join(["(" + k + a + str(x) + ")" for x in b]) + ")")
         builder = expr[0]
         if len(linker) > 1:
@@ -109,3 +115,27 @@ length of condition")
             if (find_all is not True) and len(result) > 0:
                 return result
         return result
+
+    def extract_data(self, path, condition, cols = None, ts_col = None):
+        """
+        Extract data from a compound datatype
+        path
+            path to the data
+        condition
+            condition to search for
+        cols
+            columns to return
+        ts_col
+            column containing datetime
+        """
+        data = self._f.get_node(path)
+        if ts_col is not None:
+            a,b = condition.get(ts_col)
+            condition[ts_col] = (a, Timestamp(b).value)
+        cond = self._build_condition(condition = condition)
+        if cols is None:
+            cols = data.colnames
+        df = [[x[col] for col in cols] for x in data.where(cond)]
+        return DataFrame(df, columns = cols)
+
+
