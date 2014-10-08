@@ -116,7 +116,8 @@ length of condition")
                 return result
         return result
 
-    def extract_data(self, path, condition, cols = None, ts_col = None):
+    def extract_data(self, path, condition, cols = None, ts_col = None, \
+    from_date = None, to_date = None):
         """
         Extract data from a compound datatype
         path
@@ -127,15 +128,51 @@ length of condition")
             columns to return
         ts_col
             column containing datetime
+        from_date
+
         """
         data = self._f.get_node(path)
-        if ts_col is not None:
-            a,b = condition.get(ts_col)
-            condition[ts_col] = (a, Timestamp(b).value)
         cond = self._build_condition(condition = condition)
+        if ts_col is not None:
+            if (from_date is None) or (to_date is None):
+                raise ValueError("Dates not matching")
+            f,t = Timestamp(from_date).value, Timestamp(to_date).value
+            cond = cond + "&" + self._build_condition({ts_col: (">=", f)})
+            cond = cond + "&" + self._build_condition({ts_col: ("<=", t)})
         if cols is None:
             cols = data.colnames
         df = [[x[col] for col in cols] for x in data.where(cond)]
         return DataFrame(df, columns = cols)
 
+    def split(self, path, newpath, name, column, condition = None, values = None):
+        """
+        Split data based on a column
+        path
+            existing path to data
+        newpath
+            path to create data
+        name
+            name of the group
+        condition
+            condition to filter other columns
+        column
+            column by which data is to be split
+        values
+            values for which data is to be split
+            If None all values are split
 
+        Split works only with the equality operator. So it can work only
+        with discrete values
+        """
+        data = self._f.get_node(path)
+        group = self._f.create_group(newpath, name = name)
+        description = data.coldescrs
+        cond = self._build_condition(condition)
+        if values is None:
+            values = unique(data.read(field = column)) # This could be horribly slow
+        for val in values:
+            d = data.where(cond)
+            d = self._f.create_table(group, name = val, description = description)
+            c = cond + " &" + self._build_condition({column: ("==", [val])})
+            data.append_where(d, condition = c)
+            self._f.flush()
