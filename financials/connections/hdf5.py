@@ -1,7 +1,7 @@
 # Connect from and to HDF5 class
 
 from collections import Iterable
-from tables import open_file
+from tables import open_file, NodeError
 from pandas import DataFrame
 from pandas.tslib import Timestamp
 
@@ -144,7 +144,8 @@ length of condition")
         df = [[x[col] for col in cols] for x in data.where(cond)]
         return DataFrame(df, columns = cols)
 
-    def split(self, path, newpath, name, column, condition = None, values = None):
+    def split(self, path, newpath, name, column, condition = None, \
+    values = None, overwrite_tables = False):
         """
         Split data based on a column
         path
@@ -160,19 +161,62 @@ length of condition")
         values
             values for which data is to be split
             If None all values are split
+        overwrite_tables
+            If True already existing table is overwritten
 
         Split works only with the equality operator. So it can work only
         with discrete values
         """
         data = self._f.get_node(path)
-        group = self._f.create_group(newpath, name = name)
         description = data.coldescrs
         cond = self._build_condition(condition)
+        try:
+            group = self._f.create_group(newpath, name = name)
+        except NodeError:
+            group = self._f.get_node(newpath)
+
         if values is None:
             values = unique(data.read(field = column)) # This could be horribly slow
         for val in values:
             d = data.where(cond)
-            d = self._f.create_table(group, name = val, description = description)
+            try:
+                d = self._f.create_table(group, name = val, description = description)
+            except NodeError:
+                if overwrite_tables:
+                    self._f.remove_node(group, name = val)
+                    d = self._f.create_table(group, name = val, description = description)
+                else:
+                    raise NodeError("Table seem to exist. Try overwriting them \
+with the overwrite_tables option")
             c = cond + " &" + self._build_condition({column: ("==", [val])})
             data.append_where(d, condition = c)
             self._f.flush()
+
+    def merge(self, src, dst, on = None, src_condition = None, \
+    dst_condition = None, **kwargs):
+        """
+        merge two tables based on common columns
+        src
+            source table
+        dst
+            destination table
+        on
+            columns to merge on
+        src_condition
+            condition to be applied on source table
+        dst_condition
+            condition to be applied on destination table
+        kwargs
+            kwargs to pandas merge function
+        """
+        if src_condition is None:
+            df1 = DataFrame(self._f.get_node(src).read())
+        else:
+            df1 = self.extract_data(src, condition = src_condition)
+
+        if dst_condition is None:
+            df2 = DataFrame(self._f.get_node(dest).read())
+        else:
+            df2 = self.extract_data(dst, condition = dst_condition)
+
+        return merge(df1, df2, on = on, **kwargs)
