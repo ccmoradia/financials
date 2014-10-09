@@ -9,7 +9,6 @@ class HDF5Connection(object):
     """
     Create a HDF5 connection object
     """
-    pass
 
     def __init__(self, filename, **options):
         """

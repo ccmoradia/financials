@@ -9,8 +9,7 @@ Stock must be a dataframe with date as index and the following columns
  * V - Volume 
 """
 
-from pandas import DataFrame, rolling_mean, rolling_std, rolling_max, rolling_min, rolling_max
-
+from pandas import DataFrame, rolling_mean, rolling_std, rolling_max, rolling_min
 
 def CLV(S):
     """
