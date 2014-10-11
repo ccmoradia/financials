@@ -16,20 +16,16 @@ def clean_up(function):
     """
     @wraps(function)
     def wrapped(df, set_index = None, convert_to_datetimeindex = None, \
-    d = None, *args, **kwargs):
-        if not isinstance(df, (DataFrame, Series)):
-            if hasattr(df, "d"):
-                df = df.d
-            elif d is not None:
-                df = getattr(df, d)
-            else:
-                raise AttributeError("Thisclass has no attribute d")
+    sort_index = None, *args, **kwargs):
 
         if convert_to_datetimeindex is True:
             df[set_index] = DatetimeIndex(df[set_index])
 
         if set_index is not None:
             df.set_index(set_index, inplace = True)
+
+        if sort_index is True:
+            df.sort_index(inplace = True)
 
         return function(df, *args, **kwargs)
     return wrapped
@@ -82,3 +78,9 @@ def frequency(function):
         kwargs.pop("freq", None)
         return function(df2, *args, **kwargs)
     return wrapped
+
+@clean_up
+@period
+@frequency
+def dataframe(df):
+    return df

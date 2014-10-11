@@ -15,9 +15,9 @@ import numpy as np
 import datetime
 from pandas import DataFrame, concat
 from pandas.io.parsers import read_csv
+from pandas.tslib import Timestamp
 from functools import wraps
-
-d = lambda x=None,y='%Y-%m-%d' : datetime.datetime.now() if x is None else datetime.datetime.strptime(x,y)
+from financials.utilities.decorators import dataframe
 
 def _set_freq(func):
     """
@@ -48,7 +48,8 @@ class Cash(object):
     """
     A simple cash register
     """
-    def __init__(self, initial_amount = 0, TS = None, date_format = '%Y-%m-%d', **kwargs):
+
+    def __init__(self, initial_amount = 0, TS = datetime.datetime.now(), **kwargs):
         """
         Initialize the cash register with an amount
 
@@ -56,13 +57,9 @@ class Cash(object):
         =====
         TS : TimeStamp for the data
         """
-        self._cash = DataFrame(columns = ['A','TS','I'])
-        self._funds = DataFrame(columns = ['A', 'TS', 'FD', 'I'])
+        self._cash = []
         self._columns = ['A', 'TS', 'I']
-        self._options = {}
-        self._options['dtf'] = date_format
-        df = DataFrame([[initial_amount, d(TS), 'Capital']], columns = self._columns)
-        self._cash = concat([self._cash, df])
+        self._cash.append({"A": initial_amount, "TS": Timestamp(TS), "I": "Opening Balance"})
 
     def __repr__(self):
         b = self.balance
@@ -97,12 +94,9 @@ class Cash(object):
         added as a separate column.
         """
 
-        D = {'A': abs(A), 'TS': TS, 'I': I}
-        D.update(kwargs)
-        df = DataFrame([D.values()], columns = D.keys())
-        self._cash = concat([self._cash, df], ignore_index = True)
-        return self._cash[self._columns].set_index("TS")
-
+        D = {'A': abs(A), 'TS': Timestamp(TS), 'I': I}
+        self._cash.append(D)
+        return self.balance
 
     def wd(self, A, TS = datetime.datetime.now(), I = "Cash withdrawn", **kwargs):
         """
@@ -112,24 +106,24 @@ class Cash(object):
         TS: Date or time in specified format
         """
         D = {'A': -abs(A), 'TS': TS, 'I': I}
-        D.update(kwargs)
-        df = DataFrame([D.values()], columns = D.keys())
-        self._cash = concat([self._cash, df], ignore_index = True)
-        return self._cash[self._columns].set_index("TS")
+        self._cash.append(D)
+        return self.balance
+
 
     @property
     def balance(self):
         """
         Balance in your cash register
         """
-        return sum(self._cash['A'])
+        return sum(x["A"] for x in self._cash)
 
     @_set_freq
     def ledger(self, from_date = None, to_date = None, freq = None):
         """
         Show the cash ledger
         """
-        df = self._cash[self._columns].set_index('TS')
+        df = DataFrame(self._cash)[self._columns]
+        df.set_index("TS", inplace = True)
         df.sort_index(inplace = True)
         df['balance'] = df['A'].cumsum()
         return df.reset_index() # Hack to make decorator work
@@ -138,21 +132,23 @@ class Cash(object):
         """
         Clear all entries in the cash register
         """
-        self._cash = DataFrame(columns = ['A','TS','I'])
+        self._cash = []
 
     @_set_freq
-    def inflows(self, from_period = None, to_period = None, freq = None):
+    def inflows(self, from_date = None, to_date = None, freq = None):
         """
         Cash inflows for the given period
         """
-        return self._cash[self._cash.A > 0]
+        df = DataFrame(self._cash)[self._columns]
+        return df[df.A > 0]
 
     @_set_freq
     def outflows(self, from_period = None, to_period = None, freq = None):
         """
         Cash outflows for the given period
         """
-        return self._cash[self._cash.A < 0]
+        df = DataFrame(self._cash)[self._columns]
+        return df[df.A < 0]
 
     @_set_freq
     def zeroflows(self, from_period = None, to_period = None, freq = None):
@@ -160,13 +156,15 @@ class Cash(object):
         Outflows equal to zero
         This is just for theoretical usage
         """
-        return self._cash[self._cash == 0]
+        df = DataFrame(self._cash)[self._columns]
+        return df[df.A == 0]
 
     def summarize(self, tags = ["I"], from_period = None, to_period = None):
         """
         Tags as list
         """
-        return self._cash.groupby(tags).agg({"A": sum}).loc[from_period: to_period]
+        df = DataFrame(self._cash)
+        return df.groupby(tags).agg({"A": sum}).loc[from_period: to_period]
 
     def f(self, query):
         """
@@ -174,4 +172,5 @@ class Cash(object):
         query
             A valid pandas dataframe query
         """
-        return self._cash.query(query)
+        df = DataFrame(self._cash)
+        return df.query(query)
