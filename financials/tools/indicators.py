@@ -12,13 +12,13 @@ Stock must be a dataframe with date as index and the following columns
 from pandas import DataFrame, rolling_mean, rolling_std, rolling_max, rolling_min
 from financials.utilities.decorators import *
 
-def _CLV(S, **kwargs):
+def CLV(S, **kwargs):
     """
     Calculates the Close Location Value
     """
     return ((S.C - S.L) - (S.H - S.C))/(S.H - S.L)
 
-def _TR(S, **kwargs):
+def TR(S, **kwargs):
     """
     Calculate the True Range
     """
