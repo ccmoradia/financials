@@ -28,8 +28,26 @@ class TestFrequencyTable(unittest.TestCase):
 class TestProbability(unittest.TestCase):
     def setUp(self):
         self.prob = Probability(df)
-        self.prob.add_table(on = "C", by = "B", name = "table")
+        self.prob.add_table(on = "C", by = "B", name = "table", agg = sum)
 
-    def test_add_table(self):
-        print self.prob._tables["table"]
+    def test_add_and_remove_table(self):
+        self.prob.add_table(on = "A", by = "B", name = "table2")
+        self.prob.add_table(on = "B", by = "A", name = "table3")
+        self.assertEqual(sorted(self.prob.get_tables), ["table", "table2", "table3"])
+        self.prob.remove_table("table2")
+        self.assertEqual(sorted(self.prob.get_tables), ["table", "table3"])
+        self.prob.remove_all_tables()
+        self.assertEqual(self.prob.get_tables, [])
+
+    def test_values(self):
+        print self.prob.add_table(on = "C", by = "B", name = "table")
         assert all(self.prob._tables["table"].values.ravel() == [1/3.0]*3)
+
+    def test_lookup(self):
+        result = [x/66.0 for x in [18, 22, 26]]
+        assert all(self.prob._tables["table"].values.ravel() == result)
+        assert self.prob.lookup("table", "Y").values == 1/3.0
+        self.prob.add_table(on = "C", by = ["A", "B"], name = "table2", agg = sum)
+        assert self.prob.lookup("table2", ("B", "Y")).values == 1/66.0
+        result2 = [x/66.0 for x in [0,4,8]]
+        assert all(self.prob.lookup("table2", "A").values.ravel() == result2)
