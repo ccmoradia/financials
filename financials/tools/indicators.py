@@ -84,11 +84,10 @@ def BB(S, k = 2, n = 14, **kwargs):
     Calcuate the bollinger bands
     """
     sigma = rolling_std(S.C, n)
-    central_band = MA(n)
+    central_band = SMA(S, n)
     upper_band = central_band + (k * sigma)
     lower_band = central_band - (k * sigma)
     return DataFrame([central_band, upper_band, lower_band]).T
-
 
 @period
 @frequency
@@ -99,8 +98,8 @@ def FS(S, n1 = 7, n2 = 5, n3 = 5, **kwargs):
     S['MinLow'] = rolling_min(S.L, n1)
     S['MaxHigh'] = rolling_max(S.L, n1)
     K_fast = ((S.C - S.MinLow) / (S.MaxHigh - S.MinLow)) * 100
-    K_full = MA(K_fast, n2)
-    D_full = MA(K_full, n3)
+    K_full = rolling_mean(K_fast, n2)
+    D_full = rolling_mean(K_full, n3)
     return DataFrame([K_full, D_full]).T
 
 @period
@@ -110,7 +109,7 @@ def MACD(S, n1 = 12, n2 = 26, n3 = 9, **kwargs):
     Calculate the Moving Average Convergence Divergence
     """
     macd = EMA(S, n1) - EMA(S, n2)
-    signal_line = EMA(macd, 9)
+    signal_line = rolling_mean(macd, 9)
     histogram = macd - signal_line
     return DataFrame([macd, signal_line, histogram]).T
 
@@ -142,9 +141,9 @@ def RSI(S, n = 7, **kwargs):
             gain.append(0)
     S['Gain'] = gain
     S['Loss'] = loss
-    intial_gain = MA(S.Gain, n)
+    initial_gain = rolling_mean(S.Gain, n)
     average_gain = ((initial_gain.shift(1) * (n - 1)) / initial_gain) / n
-    initial_loss = MA(S.Loss, n)
+    initial_loss = rolling_mean(S.Loss, n)
     average_loss = ((initial_loss.shift(1) * (n -1)) / initial_loss) / n
     RS = average_gain / average_loss
     rsi = 100 - (100 / (1 + RS))
@@ -156,4 +155,4 @@ def SR(S, **kwargs):
     """
     Returns the support resistance levels
     """
-    pass
+    return DataFrame([rolling_min(S.L, 1), rolling_max(S.H, 1)]).T
