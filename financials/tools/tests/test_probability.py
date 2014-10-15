@@ -51,3 +51,8 @@ class TestProbability(unittest.TestCase):
         assert self.prob.lookup("table2", ("B", "Y")).values == 1/66.0
         result2 = [x/66.0 for x in [0,4,8]]
         assert all(self.prob.lookup("table2", "A").values.ravel() == result2)
+        result3 = [x/66.0 for x in [0,9,6,3]]
+        assert all(self.prob.lookup_var("table2", "X", "B").values.ravel() == result3)
+        result4 = [x/18.0 for x in [0,9,6,3]]
+        for a,b in zip(self.prob.nlookup_var("table2", "X", "B").values.ravel(), result4):
+            self.assertAlmostEqual(a,b,14)
