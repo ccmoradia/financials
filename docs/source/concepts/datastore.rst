@@ -52,4 +52,28 @@ Symbol Change
  * Old Symbol
  * New Symbol
 
+Indices
+=====
+ * Symbol
 
+Change to indices
+===========
+ * Timestamp
+ * Symbol
+ * Inclusion/Exclusion into index
+
+Fundamental data
+===========
+Its better to store fundamental data as key value pairs or csv files for separate symbols. They take the form
+{Symbol: {key_1:  value_1 , key_2: value_2, key_n: value_n}}
+This could also be
+{Revenue: {Symbol_1: value_1, Symbol_2: value_2, Symbol_n: value_n}}
+By iterating over key/value pairs, they could be transformed to arrays.
+A few keys for fundamental data
+ * Revenue/Earnings
+ * Cash
+ * Assets
+ * Operating Profit
+ * EBIT
+ * Earnings after tax
+and more

@@ -17,3 +17,6 @@ dense data - a lot of rows with all columns filled up
 sparse data could be represented as key value pairs and dense data as arrays.
 
 HDF5 is the specified format
+
+Basically two types of data types are used - arrays and key/value pairs.
+Arrays are represented by csv files and key/value pairs as json files. Both the formats must be interchangeable
