@@ -18,7 +18,7 @@ class AdvancedGroup(object):
         =========
 
         TS: TimeStamp column
-        Symbol: Symbol column
+        S: Symbol column
         """
         self._data = dataframe.copy()
         self._groups = {}
